@@ -1,9 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
@@ -17,27 +17,28 @@ const (
 )
 
 var router *gin.Engine
-var db *sql.DB
+var db *sqlx.DB
 // Structure of database is declared
 type patient struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	Illness    string `json:"illness"`
-	BirthDate  string `json:"birth_date"`
-	LocationId int    `json:"location_id"`
+	Id int `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+	Illness string `json:"illness" db:"illness"`
+	BirthDate string `json:"birthDate" db:"birth_date"`
+	LocationId int `json:"locationId" db:"location_id"`
 }
 
 type location struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	HospitalId int    `json:"hospital_id"`
+	Id int `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+	HospitalId string `json:"hospitalId" db:"hospital_id"`
 }
 
 type hospital struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	HospitalId int    `json:"max_patient_amount"`
+	Id int `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+	MaxPatientAmount int `json:"maxPatientCount" db:"max_patient_amount"`
 }
+
 // function declaring abouter router
 func main() {
 	router = gin.Default()
@@ -51,101 +52,38 @@ func main() {
 }
 
 func initDatabase() {
-
 	psqlInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s", DbUser, DbPassword, DbName, DbHost)
-	var err error
-
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-	log.Println("Successfully connected to the database")
+	db= sqlx.MustConnect("postgres", psqlInfo)
 }
 // Provide details of all patients
 func GetAllPatients(c *gin.Context) {
-
-	rows, err := db.Query("SELECT * FROM patient")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
 	var patients []patient
-	for rows.Next() {
-		row := patient{}
-		err = rows.Scan(&row.ID, &row.Name, &row.Illness, &row.BirthDate, &row.LocationId)
-
-		if err != nil {
-			panic(err)
-		}
-		patients = append(patients, row)
-	}
-
-	err = rows.Err()
+	err := db.Select(&patients, "select * from patient")
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
-
-	c.JSON(http.StatusOK, gin.H{"patients": patients})
+	c.JSON(http.StatusOK, patients)
 }
+
 
 // Provide deatils of all locations
 func GetAllLocations(c *gin.Context) {
-	rows, err := db.Query("SELECT * FROM location")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
 	var locations []location
-	for rows.Next() {
-		row := location{}
-		err = rows.Scan(&row.ID, &row.Name, &row.HospitalId)
-
-		if err != nil {
-			panic(err)
-		}
-		locations = append(locations, row)
-	}
-
-	err = rows.Err()
+	err := db.Select(&locations, "select * from location")
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
-
-	c.JSON(http.StatusOK, gin.H{"locations": locations})
+	c.JSON(http.StatusOK, locations)
 }
 
 // Provoide details of all hospitals
 func GetAllHospitals(c *gin.Context) {
-	rows, err := db.Query("SELECT * FROM hospital")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
 	var hospitals []hospital
-	for rows.Next() {
-		row := hospital{}
-		err = rows.Scan(&row.ID, &row.Name, &row.HospitalId)
-
-		if err != nil {
-			panic(err)
-		}
-		hospitals = append(hospitals, row)
-	}
-
-	err = rows.Err()
+	err := db.Select(&hospitals, "select * from hospital")
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
-
-	c.JSON(http.StatusOK, gin.H{"hospitals": hospitals})
+	c.JSON(http.StatusOK, hospitals)
 }
 
 // This function will initialize all the routes
